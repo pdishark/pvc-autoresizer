@@ -95,12 +95,14 @@ func (w *pvcAutoresizer) getStorageClassList(ctx context.Context) (*storagev1.St
 }
 
 func (w *pvcAutoresizer) reconcile(ctx context.Context) {
+	w.log.Info("debug: get storage class list")
 	scs, err := w.getStorageClassList(ctx)
 	if err != nil {
 		w.log.Error(err, "getStorageClassList failed")
 		return
 	}
 
+	w.log.Info("debug: get volume stats from metrics client")
 	vsMap, err := w.metricsClient.GetMetrics(ctx)
 	if err != nil {
 		w.log.Error(err, "metricsClient.GetMetrics failed")
@@ -108,6 +110,8 @@ func (w *pvcAutoresizer) reconcile(ctx context.Context) {
 	}
 
 	for _, sc := range scs.Items {
+		w.log.Info("debug: processing storage class", "name", sc.Name)
+
 		var pvcs corev1.PersistentVolumeClaimList
 		err = w.client.List(ctx, &pvcs, client.MatchingFields(map[string]string{storageClassNameIndexKey: sc.Name}))
 		if err != nil {
@@ -116,6 +120,8 @@ func (w *pvcAutoresizer) reconcile(ctx context.Context) {
 			return
 		}
 		for _, pvc := range pvcs.Items {
+			w.log.Info("debug: processing pvc", "namespace", pvc.Namespace, "name", pvc.Name)
+
 			log := w.log.WithValues("namespace", pvc.Namespace, "name", pvc.Name)
 			isTarget, err := isTargetPVC(&pvc)
 			if err != nil {
